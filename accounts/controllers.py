@@ -11,6 +11,8 @@ import redis
 
 import xlsxwriter
 
+from openpyxl import load_workbook
+
 
 # ----------------------------------------------- #
 
@@ -44,9 +46,40 @@ def list_all_accounts_controller():
     return jsonify(response)
 
 
+def read_report_controller():
+    excelfile = "fileUpload/report.xlsx"
+    wb = load_workbook(excelfile)
+    ws = wb[wb.sheetnames[0]]
+    data = {}
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
+    channel = connection.channel()
+
+    channel.queue_declare(queue="send.email.flask")
+    for row in range(2, ws.max_row + 1):  # need +1 to get last row!
+        for col in "A":  # A gets players for texted season
+            cell_name = "{}{}".format(col, row)
+            data["email"] = ws[cell_name].value
+        for col in "B":  # A gets players for texted season
+            cell_name = "{}{}".format(col, row)
+            data["username"] = ws[cell_name].value
+        for col in "C":  # A gets players for texted season
+            cell_name = "{}{}".format(col, row)
+            data["dob"] = ws[cell_name].value
+        for col in "D":  # A gets players for texted season
+            cell_name = "{}{}".format(col, row)
+            data["country"] = ws[cell_name].value
+        for col in "E":  # A gets players for texted season
+            cell_name = "{}{}".format(col, row)
+            data["phone_number"] = ws[cell_name].value
+        channel.basic_publish(
+            exchange="", routing_key="send.email.flask", body=repr(data)
+        )
+    return jsonify(data)
+
+
 def createReport(data):
     fn = "report.xlsx"
-    workbook = xlsxwriter.Workbook("generated/" + fn)
+    workbook = xlsxwriter.Workbook("fileUpload/" + fn)
     worksheet = workbook.add_worksheet()
     worksheet.write(0, 0, "No: ")
     worksheet.write(0, 1, "Email: ")

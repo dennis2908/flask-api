@@ -8,12 +8,18 @@ from .controllers import (
     update_account_controller,
     delete_account_controller,
     export_all_accounts_excel_controller,
+    read_report_controller,
 )
 
 
 @app.route("/accounts/export_excel", methods=["GET"])
 def export_all_accounts_excel():
     return export_all_accounts_excel_controller()
+
+
+@app.route("/accounts/read_excel", methods=["GET"])
+def read_report_excel():
+    return read_report_controller()
 
 
 @app.route("/accounts", methods=["GET", "POST"])
