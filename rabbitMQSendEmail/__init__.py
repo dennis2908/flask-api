@@ -2,9 +2,9 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-from sqlalchemy import text, insert
-
 import uuid
+
+from datetime import datetime
 
 
 from ..config import config
@@ -15,6 +15,8 @@ from ..accounts.models import Account
 import pika, os
 
 from pusher import Pusher
+
+from pymongo import MongoClient
 
 app = Flask(__name__)
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
@@ -31,7 +33,9 @@ pusher = Pusher(
     cluster="ap1",
     ssl=False,
 )
-
+client = MongoClient("mongodb://localhost:27017/")
+db = client["demo"]
+collection = db["data"]
 mail = Mail(app)
 
 
@@ -101,6 +105,14 @@ def create_account_controller_rw(data):
         db.session.commit()
         print("Successfully insert data")
         pusher.trigger("accounts", "accounts-post-added", data)
+        dataMongo = {}
+        dataMongo["type_operation"] = "insert data"
+        dataMongo["table"] = "accounts"
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        dataMongo["datetime"] = dt_string
+        collection.insert_one(dataMongo)
+        print(collection.find_one())
         maildata(data)
         print("Successfully send email")
     else:
