@@ -49,14 +49,16 @@ def main():
     connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
     channel = connection.channel()
 
-    channel.queue_declare(queue="send.email.flask")
+    channel.queue_declare(queue="save.data.and.send.email.flask")
 
     def callback(ch, method, properties, body):
         print(f" [x] Received {body}")
         create_account_controller_rw(eval(body))
 
     channel.basic_consume(
-        queue="send.email.flask", on_message_callback=callback, auto_ack=True
+        queue="save.data.and.send.email.flask",
+        on_message_callback=callback,
+        auto_ack=True,
     )
 
     print(" [*] Waiting for messages. To exit press CTRL+C")
@@ -111,8 +113,9 @@ def create_account_controller_rw(data):
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         dataMongo["datetime"] = dt_string
-        collection.insert_one(dataMongo)
-        print(collection.find_one())
+        resMongo = collection.insert_one(dataMongo)
+        print(collection.find_one({"_id": resMongo.inserted_id}))
+        # print(resMongo.inserted_id)
         maildata(data)
         print("Successfully send email")
     else:

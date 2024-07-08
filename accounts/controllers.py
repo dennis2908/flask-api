@@ -71,9 +71,10 @@ def read_report_controller():
         for col in "E":  # A gets players for texted season
             cell_name = "{}{}".format(col, row)
             data["phone_number"] = ws[cell_name].value
-        channel.basic_publish(
-            exchange="", routing_key="send.email.flask", body=repr(data)
-        )
+        if data["email"] is not None:
+            channel.basic_publish(
+                exchange="", routing_key="send.email.flask", body=repr(data)
+            )
     return jsonify(data)
 
 
@@ -141,9 +142,11 @@ def create_account_controller():
     connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
     channel = connection.channel()
 
-    channel.queue_declare(queue="send.email.flask")
+    channel.queue_declare(queue="save.data.and.send.email.flask")
 
-    channel.basic_publish(exchange="", routing_key="send.email.flask", body=repr(data))
+    channel.basic_publish(
+        exchange="", routing_key="save.data.and.send.email.flask", body=repr(data)
+    )
     print(data)
 
     # maildata(data)
@@ -156,18 +159,19 @@ def retrieve_account_controller(account_id):
 
 
 def update_account_controller(account_id):
-    request_form = request.form.to_dict()
-    account = Account.query.get(account_id)
+    request_form = request.get_json()
+    request_form["id"] = account_id
 
-    account.email = request_form["email"]
-    account.username = request_form["username"]
-    account.dob = request_form["dob"]
-    account.country = request_form["country"]
-    account.phone_number = request_form["phone_number"]
-    db.session.commit()
+    connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
+    channel = connection.channel()
 
-    response = Account.query.get(account_id).toDict()
-    return jsonify(response)
+    channel.queue_declare(queue="update.data")
+
+    channel.basic_publish(
+        exchange="", routing_key="update.data", body=repr(request_form)
+    )
+
+    return jsonify(request_form)
 
 
 def delete_account_controller(account_id):
