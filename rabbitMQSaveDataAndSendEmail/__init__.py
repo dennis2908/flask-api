@@ -4,6 +4,8 @@ from flask_migrate import Migrate
 
 import uuid
 
+import time
+
 from datetime import datetime
 
 
@@ -17,6 +19,8 @@ import pika, os
 from pusher import Pusher
 
 from pymongo import MongoClient
+
+from celery import Celery
 
 app = Flask(__name__)
 app.config["MAIL_DEFAULT_SENDER"] = os.getenv("MAIL_DEFAULT_SENDER")
@@ -53,7 +57,9 @@ def main():
 
     def callback(ch, method, properties, body):
         print(f" [x] Received {body}")
-        create_account_controller_rw(eval(body))
+        Celery(
+            create_account_controller_rw(eval(body)), broker="amqp://guest@localhost//"
+        )
 
     channel.basic_consume(
         queue="save.data.and.send.email.flask",
@@ -63,6 +69,13 @@ def main():
 
     print(" [*] Waiting for messages. To exit press CTRL+C")
     channel.start_consuming()
+
+
+def hello(data):
+
+    time.sleep(2)
+    print(data)
+    return data
 
 
 def create_app(config_mode):
@@ -78,6 +91,8 @@ def create_app(config_mode):
 
 
 def create_account_controller_rw(data):
+
+    time.sleep(4)
     # request_form = request.form.to_dict()
 
     # print(data["email"])
@@ -115,8 +130,10 @@ def create_account_controller_rw(data):
         dataMongo["datetime"] = dt_string
         resMongo = collection.insert_one(dataMongo)
         print(collection.find_one({"_id": resMongo.inserted_id}))
+
+        Celery(maildata(data), broker="amqp://guest@localhost//")
         # print(resMongo.inserted_id)
-        maildata(data)
+
         print("Successfully send email")
     else:
         print("Email exists")
@@ -124,6 +141,8 @@ def create_account_controller_rw(data):
 
 def maildata(data):
     # request_form = request.form.to_dict()
+
+    time.sleep(2)
 
     msg = Message(
         subject="Hello," + data["username"],
