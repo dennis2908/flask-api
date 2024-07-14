@@ -71,13 +71,6 @@ def main():
     channel.start_consuming()
 
 
-def hello(data):
-
-    time.sleep(2)
-    print(data)
-    return data
-
-
 def create_app(config_mode):
 
     app = Flask(__name__)
@@ -116,6 +109,7 @@ def create_account_controller_rw(data):
             dob=data["dob"],
             country=data["country"],
             phone_number=data["phone_number"],
+            password=data["password"],
         )
 
         db.session.execute(insert_stmt)

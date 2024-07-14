@@ -13,6 +13,13 @@ import xlsxwriter
 
 from openpyxl import load_workbook
 
+import jwt, os
+from datetime import datetime
+
+from flask import request, abort
+
+from functools import wraps
+
 
 # ----------------------------------------------- #
 
@@ -34,6 +41,77 @@ cache.init_app(app)
 redis_client = redis.Redis(
     host=os.getenv("CACHE_REDIS_HOST"), port=os.getenv("CACHE_REDIS_PORT"), db=0
 )
+
+
+def token_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        token = None
+        if "Authorization" in request.headers:
+            token = request.headers["Authorization"].split(" ")[1]
+        if not token:
+            return {
+                "message": "Authentication Token is missing!",
+                "error": "Unauthorized",
+            }, 401
+        try:
+            data = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=["HS256"])
+            current_user = Account().query.filter_by(email=data["email"]).first()
+            if current_user.email is None:
+                return {
+                    "message": "Invalid Authentication token!",
+                    "error": "Unauthorized",
+                }, 401
+            if not current_user.email:
+                abort(403)
+        except Exception as e:
+            return {
+                "message": "Something went wrong",
+                "data": None,
+                "error": str(e),
+            }, 500
+
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def login():
+    try:
+        data = request.json
+        if not data:
+            return {
+                "message": "Please provide user details",
+                "data": None,
+                "error": "Bad request",
+            }, 400
+
+        user = (
+            Account()
+            .query.filter_by(email=data["email"])
+            .filter_by(password=data["password"])
+            .first()
+        )
+        print(111, user.email)
+        if user:
+            try:
+
+                # token should expire after 24 hrs
+                userd = jwt.encode(
+                    {"email": user.email},
+                    os.getenv("SECRET_KEY"),
+                    algorithm="HS256",
+                )
+                return {"message": "Successfully fetched auth token", "data": userd}
+            except Exception as e:
+                return {"error": "Something went wrong", "message": str(e)}, 500
+        return {
+            "message": "Error fetching auth token!, invalid email or password",
+            "data": None,
+            "error": "Unauthorized",
+        }, 404
+    except Exception as e:
+        return {"message": "Something went wrong!", "error": str(e), "data": None}, 500
 
 
 def list_all_accounts_controller():
@@ -71,16 +149,21 @@ def read_report_controller():
         for col in "E":  # A gets players for texted season
             cell_name = "{}{}".format(col, row)
             data["phone_number"] = ws[cell_name].value
+        print(12122, data)
         if data["email"] is not None:
             channel.basic_publish(
-                exchange="", routing_key="send.email.flask", body=repr(data)
+                exchange="save.data.and.send.email.flask",
+                routing_key="save.data.and.send.email.flask",
+                body=repr(data),
             )
     return jsonify(data)
 
 
 def createReport(data):
-    fn = "report.xlsx"
-    workbook = xlsxwriter.Workbook("fileUpload/" + fn)
+    now = datetime.now()
+    fn = "generated/fileCustomer" + now.strftime("%d%m%Y%H%M%S") + ".xlsx"
+    f = open(fn, "x")
+    workbook = xlsxwriter.Workbook(fn)
     worksheet = workbook.add_worksheet()
     worksheet.write(0, 0, "No: ")
     worksheet.write(0, 1, "Email: ")
@@ -115,7 +198,7 @@ def export_all_accounts_excel_controller():
     for account in accounts:
         response.append(account.toDict())
 
-    fn = "generated/" + createReport(response)
+    fn = createReport(response)
     return send_file(fn, mimetype="application/vnd.ms-excel")
 
 
@@ -123,21 +206,10 @@ def export_all_accounts_excel_controller():
 
 
 def create_account_controller():
+    print(111, request.get_json())
     # request_form = request.form.to_dict()
 
     data = request.get_json()
-    # print(data["email"])
-
-    id = str(uuid.uuid4())
-    new_account = Account(
-        id=id,
-        email=data["email"],
-        username=data["username"],
-        dob=data["dob"],
-        country=data["country"],
-        phone_number=data["phone_number"],
-    )
-    db.session.add(new_account)
 
     connection = pika.BlockingConnection(pika.ConnectionParameters(host="localhost"))
     channel = connection.channel()

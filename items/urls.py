@@ -1,6 +1,7 @@
 from flask import request
 
 from ..app import app
+
 from .controllers import (
     list_all_items_controller,
     create_item_controller,
@@ -8,9 +9,11 @@ from .controllers import (
     update_item_controller,
     delete_item_controller,
 )
+from ..auth_middleware import token_required_data
 
 
 @app.route("/items", methods=["GET", "POST"])
+@token_required_data
 def list_create_items():
     if request.method == "GET":
         return list_all_items_controller()
@@ -21,6 +24,7 @@ def list_create_items():
 
 
 @app.route("/items/<item_id>", methods=["GET", "PUT", "DELETE"])
+@token_required_data
 def retrieve_update_destroy_item(item_id):
     if request.method == "GET":
         return retrieve_item_controller(item_id)

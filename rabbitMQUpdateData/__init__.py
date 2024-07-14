@@ -2,15 +2,12 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 
-import uuid
-
-from datetime import datetime
-
+from celery import Celery
 
 from ..config import config
-from flask_mail import Mail, Message
+from flask_mail import Mail
 
-from ..accounts.models import Account
+import time
 
 import pika, os
 
@@ -53,7 +50,9 @@ def main():
 
     def callback(ch, method, properties, body):
         print(f" [x] Received {body}")
-        update_account_controller_rw(eval(body))
+        Celery(
+            update_account_controller_rw(eval(body)), broker="amqp://guest@localhost//"
+        )
 
     channel.basic_consume(
         queue="update.data",
@@ -78,7 +77,7 @@ def create_app(config_mode):
 
 
 def update_account_controller_rw(data):
-
+    time.sleep(2)
     db.session.execute(
         db.text(
             "UPDATE account "

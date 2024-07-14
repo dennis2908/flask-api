@@ -10,6 +10,12 @@ from flask_apscheduler import APScheduler
 
 app = create_app(os.getenv("CONFIG_MODE"))
 
+SECRET_KEY = os.environ.get("SECRET_KEY") or "this is a secret"
+
+print(SECRET_KEY)
+
+app.config["SECRET_KEY"] = SECRET_KEY
+
 # ----------------------------------------------- #
 
 

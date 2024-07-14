@@ -9,7 +9,10 @@ from .controllers import (
     delete_account_controller,
     export_all_accounts_excel_controller,
     read_report_controller,
+    login,
 )
+
+from ..auth_middleware import token_required_data
 
 
 @app.route("/accounts/export_excel", methods=["GET"])
@@ -18,11 +21,19 @@ def export_all_accounts_excel():
 
 
 @app.route("/accounts/read_excel", methods=["GET"])
+@token_required_data
 def read_report_excel():
     return read_report_controller()
 
 
+@app.route("/accounts/login", methods=["POST"])
+@token_required_data
+def login_ctrl():
+    return login()
+
+
 @app.route("/accounts", methods=["GET", "POST"])
+@token_required_data
 def list_create_accounts():
     if request.method == "GET":
         return list_all_accounts_controller()
@@ -33,6 +44,7 @@ def list_create_accounts():
 
 
 @app.route("/accounts/<account_id>", methods=["GET", "PUT", "DELETE"])
+@token_required_data
 def retrieve_update_destroy_account(account_id):
     if request.method == "GET":
         return retrieve_account_controller(account_id)
