@@ -27,13 +27,11 @@ def read_report_excel():
 
 
 @app.route("/accounts/login", methods=["POST"])
-@token_required_data
 def login_ctrl():
     return login()
 
 
 @app.route("/accounts", methods=["GET", "POST"])
-@token_required_data
 def list_create_accounts():
     if request.method == "GET":
         return list_all_accounts_controller()
