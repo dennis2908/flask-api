@@ -4,6 +4,8 @@ import os
 from . import create_app # from __init__ file
 app = create_app(os.getenv("CONFIG_MODE")) 
 
+app.secret_key = os.getenv("SESSION_SECRET_KEY")
+
 # ----------------------------------------------- #
 
 # Hello World!
