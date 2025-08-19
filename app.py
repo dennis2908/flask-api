@@ -1,11 +1,15 @@
+
 import os
+
 
 # App Initialization
 from . import create_app # from __init__ file
 app = create_app(os.getenv("CONFIG_MODE")) 
 
 app.secret_key = os.getenv("SESSION_SECRET_KEY")
+from flask import Flask
 
+app = Flask(__name__)
 # ----------------------------------------------- #
 
 # Hello World!
