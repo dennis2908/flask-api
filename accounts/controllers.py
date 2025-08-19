@@ -1,4 +1,5 @@
-from flask import request, jsonify, Flask, send_file
+from flask import request, jsonify, Flask, send_file, session
+
 import uuid
 
 from .. import db
@@ -20,6 +21,9 @@ from flask import request, abort
 
 from functools import wraps
 
+from cryptography.fernet import Fernet
+
+
 
 # ----------------------------------------------- #
 
@@ -28,7 +32,6 @@ from functools import wraps
 # How to serialize SqlAlchemy PostgreSQL Query to JSON => https://stackoverflow.com/a/46180522
 
 app = Flask(__name__)
-
 app.config["CACHE_TYPE"] = os.getenv("CACHE_TYPE")
 app.config["CACHE_REDIS_HOST"] = os.getenv("CACHE_REDIS_HOST")
 app.config["CACHE_REDIS_PORT"] = os.getenv("CACHE_REDIS_PORT")
@@ -42,6 +45,41 @@ redis_client = redis.Redis(
     host=os.getenv("CACHE_REDIS_HOST"), port=os.getenv("CACHE_REDIS_PORT"), db=0
 )
 
+
+encryption_key = Fernet.generate_key()
+fernet = Fernet(encryption_key)
+
+def encrypt_data(data):
+    encrypted_data = fernet.encrypt(data.encode())
+    return encrypted_data
+
+def decrypt_data(encrypted_data):
+    decrypted_data = fernet.decrypt(encrypted_data).decode()
+    return decrypted_data
+
+def ref_token():
+    try:
+            data = jwt.decode(decrypt_data(session['refresh_token']), os.getenv("SECRET_REFRESH_TOKEN"), algorithms=["HS256"])
+            current_user = Account().query.filter_by(email=data["email"]).first()
+            if current_user.email is None:
+                return {
+                    "message": "Invalid Authentication token!",
+                    "error": "Unauthorized",
+                }, 401
+            if not current_user.email:
+                abort(403)
+            userd = jwt.encode(
+                    {"email": current_user.email},
+                    os.getenv("SECRET_KEY"),
+                    algorithm="HS256",
+                )
+
+            return {"message": "Successfully fetched new auth token", "new token": userd}        
+    except Exception as e:
+            return {
+                "message": "Invalid Authentication token!",
+                "error": "Unauthorized",
+            }, 500 
 
 def token_required(f):
     @wraps(f)
@@ -102,7 +140,16 @@ def login():
                     os.getenv("SECRET_KEY"),
                     algorithm="HS256",
                 )
-                return {"message": "Successfully fetched auth token", "data": userd}
+
+                refresh_token = jwt.encode(
+                    {"email": user.email},
+                    os.getenv("SECRET_REFRESH_TOKEN"),
+                    algorithm="HS256",
+                )
+                encrypted_data = encrypt_data(refresh_token)
+                print(111, refresh_token)
+                session["refresh_token"] = encrypted_data
+                return {"message": "Successfully fetched auth token", "token": userd}
             except Exception as e:
                 return {"error": "Something went wrong", "message": str(e)}, 500
         return {

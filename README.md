@@ -15,3 +15,7 @@ The Last step before starting with the code, create a requirements file using th
 ```bash
 python -m pip freeze > requirements.txt
 ```
+
+python -m pip uninstall flask-sqlalchemy
+
+python -m pip install flask-sqlalchemy

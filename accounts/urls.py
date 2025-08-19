@@ -9,6 +9,7 @@ from .controllers import (
     delete_account_controller,
     export_all_accounts_excel_controller,
     read_report_controller,
+    ref_token,
     login,
 )
 
@@ -27,20 +28,22 @@ def read_report_excel():
 
 
 @app.route("/accounts/login", methods=["POST"])
-@token_required_data
 def login_ctrl():
     return login()
 
+@app.route("/accounts/refresh/token", methods=["POST"])
+def refresh_token():
+    return ref_token()
 
-@app.route("/accounts", methods=["GET", "POST"])
+
+@app.route("/accounts", methods=["GET"])
 @token_required_data
+def list_all_accounts():
+    return list_all_accounts_controller()
+
+@app.route("/accounts", methods=["POST"])
 def list_create_accounts():
-    if request.method == "GET":
-        return list_all_accounts_controller()
-    if request.method == "POST":
-        return create_account_controller()
-    else:
-        return "Method is Not Allowed"
+    return create_account_controller() 
 
 
 @app.route("/accounts/<account_id>", methods=["GET", "PUT", "DELETE"])
